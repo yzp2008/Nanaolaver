@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>南澳紫菜多模态风味特征数据库</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --deep: #1B2A3A; --sun: #C0392B; --sun-light: #E74C3C;
+  --gold: #D4A017; --ocean: #2471A3; --cream: #FAF8F5;
+  --white: #FFFFFF; --gray: #95A5A6; --light-gray: #ECF0F1;
+  --shadow: 0 2px 12px rgba(0,0,0,0.08);
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: 'Microsoft YaHei','PingFang SC',sans-serif; background: var(--cream); color: #333; line-height:1.6; }
+.header {
+  background: linear-gradient(135deg, var(--deep) 0%, #2C3E50 100%);
+  color: var(--white); padding: 20px 40px; display: flex;
+  align-items: center; justify-content: space-between; flex-wrap: wrap;
+  box-shadow: 0 2px 20px rgba(0,0,0,0.15); position: sticky; top: 0; z-index: 100;
+}
+.header h1 { font-size: 1.5rem; font-weight: 700; }
+.header h1 span { color: var(--gold); }
+.header .subtitle { font-size: 0.8rem; opacity: 0.7; margin-top: 2px; }
+.stats-bar {
+  display: flex; gap: 20px; flex-wrap: wrap; padding: 12px 40px;
+  background: var(--white); border-bottom: 1px solid var(--light-gray);
+}
+.stat-item { text-align: center; }
+.stat-num { font-size: 1.3rem; font-weight: 700; color: var(--sun); }
+.stat-label { font-size: 0.7rem; color: var(--gray); }
+.main-container { display: flex; min-height: calc(100vh - 140px); }
+.sidebar {
+  width: 240px; background: var(--white); border-right: 1px solid var(--light-gray);
+  padding: 15px 0; flex-shrink: 0;
+}
+.sidebar-title { padding: 8px 20px; font-size: 0.7rem; color: var(--gray); text-transform: uppercase; letter-spacing: 1px; }
+.sidebar-item {
+  padding: 10px 20px; cursor: pointer; font-size: 0.85rem; border-left: 3px solid transparent;
+  transition: all 0.2s; display: flex; align-items: center; gap: 8px;
+}
+.sidebar-item:hover { background: var(--light-gray); }
+.sidebar-item.active { border-left-color: var(--sun); background: #FDF2F2; font-weight: 700; color: var(--sun); }
+.sidebar-badge { font-size: 0.6rem; background: var(--sun-light); color: white; padding: 1px 6px; border-radius: 10px; }
+.content { flex: 1; padding: 25px 35px; overflow-y: auto; max-height: calc(100vh - 140px); }
+.module-title { font-size: 1.4rem; font-weight: 700; color: var(--deep); margin-bottom: 5px; }
+.module-desc { font-size: 0.85rem; color: var(--gray); margin-bottom: 20px; }
+.toolbar { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
+.search-box {
+  padding: 8px 16px; border: 1px solid #ddd; border-radius: 20px; width: 250px;
+  font-size: 0.85rem; outline: none; transition: border 0.2s;
+}
+.search-box:focus { border-color: var(--sun); }
+.btn {
+  padding: 8px 18px; border: none; border-radius: 20px; cursor: pointer;
+  font-size: 0.8rem; font-weight: 600; transition: all 0.2s;
+}
+.btn-primary { background: var(--sun); color: white; }
+.btn-primary:hover { background: #A93226; }
+.btn-outline { background: white; color: var(--sun); border: 1.5px solid var(--sun); }
+.btn-outline:hover { background: #FDF2F2; }
+.table-wrapper { overflow-x: auto; border-radius: 8px; box-shadow: var(--shadow); background: white; }
+table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+th {
+  background: var(--deep); color: white; padding: 10px 12px; text-align: left;
+  font-weight: 600; white-space: nowrap; position: sticky; top: 0; cursor: pointer;
+}
+th:hover { background: #2C3E50; }
+td { padding: 8px 12px; border-bottom: 1px solid var(--light-gray); }
+tr:hover td { background: #FDF2F2; }
+tr:nth-child(even) td { background: #FAFAFA; }
+tr:hover td { background: #FDF2F2 !important; }
+.highlight { color: var(--sun); font-weight: 700; }
+.chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap: 20px; margin-top: 20px; }
+.chart-card {
+  background: white; border-radius: 8px; padding: 20px; box-shadow: var(--shadow);
+}
+.chart-card h3 { font-size: 1rem; color: var(--deep); margin-bottom: 15px; }
+.empty-state { text-align: center; padding: 60px 20px; color: var(--gray); }
+.empty-state .icon { font-size: 3rem; margin-bottom: 10px; }
+.footer { text-align: center; padding: 15px; font-size: 0.7rem; color: var(--gray); border-top: 1px solid var(--light-gray); }
+@media (max-width: 768px) {
+  .main-container { flex-direction: column; }
+  .sidebar { width: 100%; display: flex; overflow-x: auto; padding: 5px; border-right: none; border-bottom: 1px solid var(--light-gray); }
+  .sidebar-item { white-space: nowrap; border-left: none; border-bottom: 2px solid transparent; }
+  .sidebar-item.active { border-left: none; border-bottom-color: var(--sun); }
+  .header h1 { font-size: 1.2rem; }
+  .content { padding: 15px; }
+  .chart-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>🔬 <span>南澳紫菜</span>多模态风味特征数据库</h1>
+    <div class="subtitle">Scientifically Queryable Flavor Identity for Nan'ao Traditional Sun-dried Laver</div>
+  </div>
+  <div style="text-align:right">
+    <div style="font-size:0.85rem;font-weight:600;">v1.0</div>
+    <div style="font-size:0.7rem;opacity:0.7;">汕头职业技术学院 · 海岛筑梦项目</div>
+  </div>
+</div>
+
+<div class="stats-bar" id="statsBar"></div>
+
+<div class="main-container">
+  <div class="sidebar" id="sidebar"></div>
+  <div class="content" id="content">
+    <div class="empty-state">
+      <div class="icon">📊</div>
+      <h3>南澳紫菜多模态风味特征数据库</h3>
+      <p>请从左侧选择一个数据模块开始查询</p>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  汕头职业技术学院 · 海岛筑梦项目团队 © 2026 &nbsp;|&nbsp;
+  <a href="https://github.com" style="color:var(--ocean);">GitHub</a> &nbsp;|&nbsp;
+  数据来源：南澳紫菜多模态风味特征数据库_v1.0
+</div>
+
+<script>
+// ═══════════════ Data Loading ═══════════════
+let DB = {};
+let currentModule = null;
+let currentSort = { col: null, asc: true };
+
+fetch('db_data.json')
+  .then(r => r.json())
+  .then(data => {
+    DB = data;
+    initSidebar();
+    updateStats();
+    // Auto-load first data module
+    const firstModule = Object.keys(DB).find(k => k.startsWith('L2_'));
+    if (firstModule) loadModule(firstModule);
+  })
+  .catch(err => {
+    document.getElementById('content').innerHTML =
+      '<div class="empty-state"><div class="icon">⚠️</div><h3>数据加载失败</h3><p>请确保 db_data.json 与本文件在同一目录下</p></div>';
+  });
+
+// ═══════════════ Sidebar ═══════════════
+const MODULE_META = {
+  '数据库说明': { icon: '📋', level: 0 },
+  'L1_元数据': { icon: '🏷️', level: 1, desc: '样品基本信息与采集记录' },
+  'L2_氨基酸': { icon: '🧬', level: 2, desc: '17种氨基酸精确定量与呈味分类' },
+  'L2_电子鼻': { icon: '👃', level: 2, desc: '14传感器挥发性气味指纹分析' },
+  'L2_电子舌': { icon: '👅', level: 2, desc: '9组脂膜传感器非挥发性滋味分析' },
+  'L2_感官评价': { icon: '🧑‍🔬', level: 2, desc: '12属性风味剖面盲评数据' },
+  'L2_GCMS': { icon: '🔬', level: 2, desc: '99种挥发性化合物全谱分析' },
+  'L2_营养成分': { icon: '💪', level: 2, desc: '21项理化指标与矿物质检测' },
+  'L3_衍生指标': { icon: '📐', level: 3, desc: '计算衍生指标与统计分析' },
+  'L4_特征化合物': { icon: '⭐', level: 4, desc: '日晒工艺特征风味标志物清单' },
+  'L4_预测方程': { icon: '📈', level: 4, desc: '感官-仪器关联预测模型' },
+  'L5_综合评价': { icon: '🏆', level: 5, desc: '风味品质综合评分与分级' },
+};
+
+const LEVEL_LABELS = { 0: '概览', 1: 'L1·元数据', 2: 'L2·原始数据', 3: 'L3·衍生指标', 4: 'L4·模型级', 5: 'L5·综合报告' };
+
+function initSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  let lastLevel = -1;
+  let html = '';
+  for (const [name, meta] of Object.entries(MODULE_META)) {
+    if (!DB[name]) continue;
+    if (meta.level !== lastLevel) {
+      html += `<div class="sidebar-title">${LEVEL_LABELS[meta.level] || ''}</div>`;
+      lastLevel = meta.level;
+    }
+    const count = DB[name].length;
+    html += `<div class="sidebar-item" data-module="${name}" onclick="loadModule('${name}')">
+      <span>${meta.icon}</span> ${name.replace('L2_','').replace('L4_','').replace('L1_','').replace('L3_','').replace('L5_','')}
+      <span class="sidebar-badge">${count}</span>
+    </div>`;
+  }
+  sidebar.innerHTML = html;
+}
+
+// ═══════════════ Stats ═══════════════
+function updateStats() {
+  let totalRecords = 0, totalSheets = 0;
+  for (const [name, records] of Object.entries(DB)) {
+    totalRecords += records.length;
+    totalSheets++;
+  }
+  document.getElementById('statsBar').innerHTML = `
+    <div class="stat-item"><div class="stat-num">${totalSheets}</div><div class="stat-label">数据模块</div></div>
+    <div class="stat-item"><div class="stat-num">${totalRecords}</div><div class="stat-label">数据记录</div></div>
+    <div class="stat-item"><div class="stat-num">5</div><div class="stat-label">检测技术</div></div>
+    <div class="stat-item"><div class="stat-num">99</div><div class="stat-label">GC-MS化合物</div></div>
+    <div class="stat-item"><div class="stat-num">15+</div><div class="stat-label">特征标志物</div></div>
+    <div class="stat-item"><div class="stat-num">v1.0</div><div class="stat-label">数据库版本</div></div>
+  `;
+}
+
+// ═══════════════ Module Loading ═══════════════
+function loadModule(moduleName) {
+  currentModule = moduleName;
+  currentSort = { col: null, asc: true };
+
+  // Update sidebar active
+  document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
+  const activeEl = document.querySelector(`[data-module="${moduleName}"]`);
+  if (activeEl) activeEl.classList.add('active');
+
+  const meta = MODULE_META[moduleName] || {};
+  const records = DB[moduleName] || [];
+  const content = document.getElementById('content');
+
+  if (records.length === 0) {
+    content.innerHTML = '<div class="empty-state"><div class="icon">📭</div><h3>暂无数据</h3></div>';
+    return;
+  }
+
+  const desc = meta.desc || '';
+  const columns = Object.keys(records[0]);
+
+  // Build HTML
+  let html = `
+    <div class="module-title">${meta.icon || '📊'} ${moduleName}</div>
+    <div class="module-desc">${desc} · ${records.length} 条记录</div>
+    <div class="toolbar">
+      <input type="text" class="search-box" placeholder="🔍 输入关键词筛选..." oninput="filterTable(this.value)" id="searchInput">
+      <button class="btn btn-outline" onclick="resetFilter()">↺ 重置</button>
+      <button class="btn btn-outline" onclick="exportCSV()">📥 导出CSV</button>
+      <span style="font-size:0.75rem;color:var(--gray);margin-left:auto;" id="filterCount"></span>
+    </div>
+    <div class="table-wrapper">
+      <table id="dataTable">
+        <thead><tr>${columns.map(c => `<th onclick="sortTable('${c.replace(/'/g,"\\'")}')">${c} ⇅</th>`).join('')}</tr></thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+    <div id="chartArea"></div>
+  `;
+
+  content.innerHTML = html;
+  window._currentRecords = records;
+  window._currentColumns = columns;
+  renderTableBody(records);
+  renderCharts(moduleName, records, columns);
+  document.getElementById('filterCount').textContent = `显示 ${records.length} 条`;
+}
+
+// ═══════════════ Table Rendering ═══════════════
+function renderTableBody(records) {
+  const tbody = document.getElementById('tableBody');
+  if (!tbody) return;
+  const columns = window._currentColumns;
+  let html = records.map(r =>
+    `<tr>${columns.map(c => {
+      const v = r[c];
+      if (v === null || v === undefined || v === 'nan' || v === 'None') return '<td style="color:#ccc">—</td>';
+      const s = String(v);
+      // Highlight significant numbers
+      if (typeof v === 'number' && (s.includes('p<') || s.includes('★★'))) return `<td class="highlight">${s}</td>`;
+      return `<td>${s}</td>`;
+    }).join('')}</tr>`
+  ).join('');
+  tbody.innerHTML = html;
+}
+
+function filterTable(query) {
+  if (!window._currentRecords) return;
+  const q = query.toLowerCase();
+  const filtered = window._currentRecords.filter(r =>
+    Object.values(r).some(v => v !== null && String(v).toLowerCase().includes(q))
+  );
+  renderTableBody(filtered);
+  document.getElementById('filterCount').textContent = `显示 ${filtered.length} / ${window._currentRecords.length} 条`;
+}
+
+function resetFilter() {
+  document.getElementById('searchInput').value = '';
+  if (window._currentRecords) {
+    renderTableBody(window._currentRecords);
+    document.getElementById('filterCount').textContent = `显示 ${window._currentRecords.length} 条`;
+  }
+}
+
+function sortTable(col) {
+  if (!window._currentRecords) return;
+  if (currentSort.col === col) {
+    currentSort.asc = !currentSort.asc;
+  } else {
+    currentSort.col = col; currentSort.asc = true;
+  }
+  const sorted = [...window._currentRecords].sort((a, b) => {
+    const va = a[col], vb = b[col];
+    if (va === null || va === undefined) return 1;
+    if (vb === null || vb === undefined) return -1;
+    const na = Number(va), nb = Number(vb);
+    if (!isNaN(na) && !isNaN(nb)) return currentSort.asc ? na - nb : nb - na;
+    return currentSort.asc ? String(va).localeCompare(String(vb)) : String(vb).localeCompare(String(va));
+  });
+  renderTableBody(sorted);
+}
+
+function exportCSV() {
+  if (!window._currentRecords || !window._currentColumns) return;
+  const cols = window._currentColumns;
+  let csv = '\uFEFF' + cols.join(',') + '\n';
+  for (const r of window._currentRecords) {
+    csv += cols.map(c => {
+      const v = r[c];
+      if (v === null || v === undefined) return '';
+      const s = String(v);
+      return s.includes(',') || s.includes('"') ? '"' + s.replace(/"/g,'""') + '"' : s;
+    }).join(',') + '\n';
+  }
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `${currentModule}.csv`; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ═══════════════ Charts ═══════════════
+function renderCharts(moduleName, records, columns) {
+  const area = document.getElementById('chartArea');
+  if (!area) return;
+  let chartHtml = '';
+  const numCols = columns.filter(c => records.some(r => typeof r[c] === 'number' && r[c] !== null));
+  const hasNumbers = numCols.length >= 2;
+
+  if (moduleName === 'L2_氨基酸' && hasNumbers) {
+    chartHtml = renderAminoChart(records, columns, numCols);
+  } else if (moduleName === 'L2_电子鼻' && hasNumbers) {
+    chartHtml = renderEnoseChart(records);
+  } else if (moduleName === 'L2_电子舌' && hasNumbers) {
+    chartHtml = renderEtongueChart(records);
+  } else if (moduleName === 'L2_感官评价' && hasNumbers) {
+    chartHtml = renderSensoryChart(records, columns);
+  } else if (moduleName === 'L2_GCMS' && hasNumbers) {
+    chartHtml = renderGCMSChart(records);
+  } else if (moduleName === 'L4_特征化合物' && hasNumbers) {
+    chartHtml = renderFeatureChart(records);
+  } else if (moduleName === 'L5_综合评价') {
+    chartHtml = renderEvalChart(records);
+  } else if (hasNumbers && records.length <= 8 && numCols.length >= 3) {
+    chartHtml = renderGenericRadar(records, numCols, moduleName);
+  } else if (hasNumbers && numCols.length >= 2) {
+    chartHtml = renderGenericBar(records, numCols, moduleName);
+  }
+
+  area.innerHTML = chartHtml;
+  // Init charts after DOM update
+  setTimeout(() => {
+    document.querySelectorAll('canvas[id^="chart_"]').forEach(canvas => {
+      const config = window['_chartConfig_' + canvas.id];
+      if (config) new Chart(canvas, config);
+    });
+  }, 100);
+}
+
+function makeChartCard(title, canvasId) {
+  return `<div class="chart-card"><h3>${title}</h3><div style="position:relative;height:320px;"><canvas id="${canvasId}"></canvas></div></div>`;
+}
+
+// ── Amino Acid Chart ──
+function renderAminoChart(records, columns, numCols) {
+  // Find the record with amino acid data
+  const row = records[0];
+  const aaNames = ['Asp(天冬氨酸)','Thr(苏氨酸)*','Ser(丝氨酸)','Glu(谷氨酸)','Gly(甘氨酸)','Ala(丙氨酸)','Val(缬氨酸)*','Met(蛋氨酸)*','Ile(异亮氨酸)*','Leu(亮氨酸)*','Tyr(酪氨酸)','Phe(苯丙氨酸)*','His(组氨酸)','Lys(赖氨酸)*','Arg(精氨酸)','Pro(脯氨酸)'];
+  const vals = aaNames.map(n => parseFloat(row[n]) || 0);
+  const tasteColors = [
+    '#E74C3C','#F39C12','#F39C12','#E74C3C','#F39C12','#F39C12',
+    '#3498DB','#3498DB','#3498DB','#3498DB','#3498DB','#3498DB','#3498DB','#3498DB','#3498DB','#F39C12'
+  ];
+  const shortNames = aaNames.map(n => n.replace(/\(.*\)/,'').replace(/\*/,''));
+
+  const chartId = 'chart_amino';
+  window['_chartConfig_' + chartId] = {
+    type: 'bar',
+    data: {
+      labels: shortNames,
+      datasets: [{ label: '含量 (g/100g)', data: vals, backgroundColor: tasteColors, borderRadius: 4 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, title: { display: true, text: '🟡鲜味 🟠甜味 🔵苦味/必需' } },
+      scales: { y: { beginAtZero: true, title: { display: true, text: 'g/100g 干重' } } }
+    }
+  };
+
+  return `<div class="chart-grid">${makeChartCard('氨基酸组成谱 (g/100g 干重)', chartId)}</div>`;
+}
+
+// ── E-Nose Chart ──
+function renderEnoseChart(records) {
+  const sensors = ['S2','S3','S4','S5','S6','S7','S8','S9','S10','S11','S12','S13','S14'];
+  const datasets = [];
+  const colors = ['#95A5A6','#E74C3C','#3498DB','#2ECC71'];
+  records.forEach((r, i) => {
+    const label = String(Object.values(r)[0] || `Sample ${i}`);
+    const vals = sensors.map(s => parseFloat(r[s] || r['S' + (s.replace('S',''))]) || 0);
+    if (vals.some(v => v > 0)) {
+      datasets.push({ label, data: vals, borderColor: colors[i%4], backgroundColor: colors[i%4]+'15', tension: 0.2, pointRadius: 3 });
+    }
+  });
+
+  const chartId = 'chart_enose';
+  window['_chartConfig_' + chartId] = {
+    type: 'radar',
+    data: { labels: sensors, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { title: { display: true, text: '14传感器挥发性指纹雷达图 (G/G₀)' } },
+      scales: { r: { beginAtZero: false, min: 0.9, max: 2.5, ticks: { stepSize: 0.3 } } }
+    }
+  };
+  return `<div class="chart-grid">${makeChartCard('电子鼻14传感器响应雷达图', chartId)}</div>`;
+}
+
+// ── E-Tongue Chart ──
+function renderEtongueChart(records) {
+  const tastes = ['AAE(酸味)','CT0(咸味)','CA0(涩味)','GL1(后苦味)','C00(后涩味)','AE1(鲜味)','BT0(浓厚感)','HA0(苦味)','SW0(甜味)'];
+  const datasets = [];
+  const colors = ['#95A5A6','#E74C3C','#3498DB','#2ECC71'];
+  records.forEach((r, i) => {
+    const label = String(Object.values(r)[0] || `Sample ${i}`);
+    const vals = tastes.map(t => parseFloat(r[t]) || 0);
+    if (vals.some(v => v !== 0)) {
+      datasets.push({ label, data: vals, borderColor: colors[i%4], backgroundColor: colors[i%4]+'15', tension: 0.2, pointRadius: 3 });
+    }
+  });
+
+  const chartId = 'chart_etongue';
+  window['_chartConfig_' + chartId] = {
+    type: 'radar',
+    data: { labels: tastes.map(t => t.replace(/\(.*\)/,'')), datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { title: { display: true, text: '9传感器滋味雷达图 (mV)' } },
+      scales: { r: { beginAtZero: false, min: -1, ticks: { stepSize: 3 } } }
+    }
+  };
+  return `<div class="chart-grid">${makeChartCard('电子舌9传感器滋味指纹', chartId)}</div>`;
+}
+
+// ── Sensory Chart ──
+function renderSensoryChart(records, columns) {
+  // Find rows with numeric data
+  const dataRows = records.filter(r => Object.values(r).some(v => typeof v === 'number'));
+  if (dataRows.length < 2) return '';
+
+  const attrs = ['黑色','绿色','紫色','红色','光泽','脆的','腥味','海苔香','鲜味','苦味','甜味','回甘'];
+  const datasets = [];
+  dataRows.forEach((r, i) => {
+    const label = String(Object.values(r)[0] || `Sample ${i}`).substring(0, 15);
+    const vals = attrs.map(a => parseFloat(r[a]) || 0);
+    if (vals.some(v => v > 0)) {
+      datasets.push({ label, data: vals, borderColor: i===0?'#E74C3C':'#95A5A6', backgroundColor: (i===0?'#E74C3C':'#95A5A6')+'15', tension: 0.2 });
+    }
+  });
+
+  const chartId = 'chart_sensory';
+  window['_chartConfig_' + chartId] = {
+    type: 'radar',
+    data: { labels: attrs, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { title: { display: true, text: '感官风味剖面雷达图 (0-3标度)' } },
+      scales: { r: { beginAtZero: true, max: 2.5 } }
+    }
+  };
+  return `<div class="chart-grid">${makeChartCard('风味剖面雷达图', chartId)}</div>`;
+}
+
+// ── GCMS Chart ──
+function renderGCMSChart(records) {
+  const numCols = Object.keys(records[0]).filter(c => records.some(r => typeof r[c] === 'number' && r[c] > 0));
+  if (numCols.length < 2) return '';
+  const cols = numCols.slice(1, 7);
+  const datasets = [];
+  records.forEach((r, i) => {
+    if (i >= 4) return;
+    const label = String(Object.values(r)[0] || `Sample ${i}`).substring(0, 12);
+    const vals = cols.map(c => parseFloat(r[c]) || 0);
+    datasets.push({ label, data: vals, backgroundColor: ['#95A5A6','#E74C3C','#3498DB','#2ECC71'][i] });
+  });
+
+  const chartId = 'chart_gcms';
+  window['_chartConfig_' + chartId] = {
+    type: 'bar',
+    data: { labels: cols.map(c => c.substring(0,8)), datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { title: { display: true, text: '挥发性成分类别对比 (μg/kg)' } },
+      scales: { y: { beginAtZero: true } }
+    }
+  };
+  return `<div class="chart-grid">${makeChartCard('GC-MS 挥发性成分对比', chartId)}</div>`;
+}
+
+// ── Feature Compounds Chart ──
+function renderFeatureChart(records) {
+  const names = [], ratios = [], colors = [];
+  records.forEach(r => {
+    const name = String(r['化合物'] || r[Object.keys(r)[1]] || '');
+    const ratio = parseFloat(r['日晒/红外比'] || r[Object.keys(r)[7]] || 0);
+    if (name && ratio > 0) {
+      names.push(name.substring(0, 10));
+      ratios.push(Math.min(ratio, 10));
+      colors.push(ratio > 3 ? '#E74C3C' : ratio > 1.5 ? '#F39C12' : '#3498DB');
+    }
+  });
+
+  if (names.length === 0) return '';
+  const chartId = 'chart_feature';
+  window['_chartConfig_' + chartId] = {
+    type: 'bar',
+    data: {
+      labels: names,
+      datasets: [{ label: '日晒/红外比值', data: ratios, backgroundColor: colors, borderRadius: 4 }]
+    },
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      plugins: { title: { display: true, text: '日晒特征标志物富集倍率 (日晒÷红外)' } },
+      scales: { x: { beginAtZero: true, title: { display: true, text: '富集倍率 (×)' } } }
+    }
+  };
+  return `<div class="chart-grid">${makeChartCard('特征化合物富集倍率', chartId)}</div>`;
+}
+
+// ── Evaluation Chart ──
+function renderEvalChart(records) {
+  return `<div class="chart-grid"><div class="chart-card"><h3>📊 综合品质评价</h3>
+    <p style="color:var(--gray);">综合品质评分数据请参见上方表格。图表建议查看项目配套的 <b>charts/15_综合风味品质与经济评价.png</b></p>
+  </div></div>`;
+}
+
+// ── Generic Charts ──
+function renderGenericBar(records, numCols, moduleName) {
+  const cols = numCols.slice(0, 8);
+  const datasets = [];
+  records.slice(0, 4).forEach((r, i) => {
+    const label = String(Object.values(r)[0] || `#${i}`).substring(0, 12);
+    const vals = cols.map(c => parseFloat(r[c]) || 0);
+    datasets.push({ label, data: vals, backgroundColor: ['#E74C3C','#3498DB','#2ECC71','#95A5A6'][i%4] });
+  });
+
+  const chartId = 'chart_genbar';
+  window['_chartConfig_' + chartId] = {
+    type: 'bar',
+    data: { labels: cols.map(c => String(c).substring(0,8)), datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { title: { display: true, text: `${moduleName} - 数据对比` } }
+    }
+  };
+  return `<div class="chart-grid">${makeChartCard(`${moduleName} 数据对比`, chartId)}</div>`;
+}
+
+function renderGenericRadar(records, numCols, moduleName) {
+  const cols = numCols.slice(0, 8);
+  const datasets = [];
+  records.slice(0, 4).forEach((r, i) => {
+    const label = String(Object.values(r)[0] || `#${i}`).substring(0, 12);
+    const vals = cols.map(c => parseFloat(r[c]) || 0);
+    datasets.push({ label, data: vals, borderColor: ['#E74C3C','#3498DB','#2ECC71','#95A5A6'][i%4], tension: 0.2 });
+  });
+
+  const chartId = 'chart_genradar';
+  window['_chartConfig_' + chartId] = {
+    type: 'radar',
+    data: { labels: cols.map(c => String(c).substring(0,8)), datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { title: { display: true, text: `${moduleName} - 雷达图` } }
+    }
+  };
+  return `<div class="chart-grid">${makeChartCard(`${moduleName} 雷达图`, chartId)}</div>`;
+}
+</script>
+</body>
+</html>
